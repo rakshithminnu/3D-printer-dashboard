@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Printer Dashboard</title>
+    <style>
+        /* General Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
+        
+        body {
+            background-color: #000;
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Header */
+        header {
+            padding: 15px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .back-button {
+            background: none;
+            border: none;
+            color: #777;
+            font-size: 24px;
+            cursor: pointer;
+            margin-right: 15px;
+        }
+        
+        .header-left {
+            display: flex;
+            align-items: center;
+        }
+        
+        .temp-indicators {
+            display: flex;
+            gap: 5px;
+            margin-right: 15px;
+        }
+        
+        .temp-pill {
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+        
+        .extruder-temp {
+            background-color: #f97316;
+        }
+        
+        .bed-temp {
+            background-color: #14b8a6;
+        }
+        
+        .pi-temp {
+            background-color: #ec4899;
+        }
+        
+        /* Main Content */
+        main {
+            flex-grow: 1;
+            padding: 15px;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+        }
+        
+        @media (min-width: 768px) {
+            main {
+                grid-template-columns: 1fr 2fr;
+            }
+        }
+        
+        .panel {
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 15px;
+        }
+        
+        /* Temperature Panel */
+        .temp-section {
+            margin-bottom: 20px;
+        }
+        
+        .temp-bar-container {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .temp-bar {
+            width: 8px;
+            height: 50px;
+            background-color: #333;
+            border-radius: 4px;
+            margin-right: 15px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .temp-bar-fill {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            border-radius: 4px;
+            transition: height 0.5s ease;
+        }
+        
+        .temp-details {
+            flex-grow: 1;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        /* Controls Grid */
+        .controls-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        .control-button {
+            grid-column: span 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 15px;
+        }
+        
+        .print-button {
+            grid-column: span 2;
+        }
+        
+        .icon-button {
+            background-color: #333;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            font-size: 20px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .icon-button:hover {
+            background-color: #444;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background-color: #333;
+            margin-top: 10px;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+        
+        .orange-fill {
+            background-color: #f97316;
+        }
+        
+        .pink-fill {
+            background-color: #ec4899;
+        }
+        
+        .teal-fill {
+            background-color: #14b8a6;
+        }
+        
+        .yellow-fill {
+            background-color: #eab308;
+        }
+        
+        .blue-fill {
+            background-color: #3b82f6;
+        }
+        
+        /* Chart */
+        .chart-container {
+            height: 200px;
+            margin-top: 20px;
+            position: relative;
+        }
+        
+        canvas {
+            width: 100%;
+            height: 100%;
+        }
+        
+        /* Status Bar */
+        footer {
+            padding: 15px;
+            border-top: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        
+        .status-idle {
+            background-color: #ef4444;
+        }
+        
+        .status-printing {
+            background-color: #22c55e;
+            animation: pulse 1.5s infinite;
+        }
+        
+        .status-homing {
+            background-color: #f97316;
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+            100% {
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-left">
+            <button class="back-button">←</button>
+            <h1>3D Printer | Home</h1>
+        </div>
+        <div class="header-right">
+            <div class="temp-indicators">
+                <span class="temp-pill extruder-temp" id="header-extruder">🌡 21°</span>
+                <span class="temp-pill bed-temp" id="header-bed">🌡 25°</span>
+                <span class="temp-pill pi-temp" id="header-pi">Pi 44°</span>
+            </div>
+            <span id="current-time">22:10</span>
+        </div>
+    </header>
+    
+    <main>
+        <!-- Temperature Panel -->
+        <div class="panel">
+            <h2>Temp (°C)</h2>
+            
+            <!-- Extruder Temperature -->
+            <div class="temp-section">
+                <div class="temp-bar-container">
+                    <div class="temp-bar">
+                        <div class="temp-bar-fill extruder-temp" id="extruder-bar" style="height: 8%;"></div>
+                    </div>
+                    <div class="temp-details">
+                        <span>🌡 Extruder</span>
+                        <span id="extruder-temp">21</span>
+                    </div>
+                </div>
+                
+                <!-- Heater Bed Temperature -->
+                <div class="temp-bar-container">
+                    <div class="temp-bar">
+                        <div class="temp-bar-fill bed-temp" id="bed-bar" style="height: 31%;"></div>
+                    </div>
+                    <div class="temp-details">
+                        <span>🔥 Heater bed</span>
+                        <span id="bed-temp">25</span>
+                    </div>
+                </div>
+                
+                <!-- Pi Temperature -->
+                <div class="temp-bar-container">
+                    <div class="temp-bar">
+                        <div class="temp-bar-fill pi-temp" id="pi-bar" style="height: 73%;"></div>
+                    </div>
+                    <div class="temp-details">
+                        <span>Pi</span>
+                        <span id="pi-temp">44</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Chart -->
+            <div class="chart-container">
+                <canvas id="temp-chart"></canvas>
+            </div>
+        </div>
+        
+        <!-- Controls Panel -->
+        <div class="controls-grid">
+            <!-- Homing -->
+            <div class="control-button">
+                <button class="icon-button" id="homing-btn">
+                    <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" fill="none">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
+                        <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                    </svg>
+                </button>
+                <span>Homing</span>
+                <div class="progress-bar">
+                    <div class="progress-fill orange-fill" id="homing-progress" style="width: 0%;"></div>
+                </div>
+            </div>
+            
+            <!-- Temperature -->
+            <div class="control-button">
+                <button class="icon-button">
+                    <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" fill="none">
+                        <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"></path>
+                    </svg>
+                </button>
+                <span>Temperature</span>
+                <div class="progress-bar">
+                    <div class="progress-fill pink-fill" style="width: 75%;"></div>
+                </div>
+            </div>
+            
+            <!-- Actions -->
+            <div class="control-button">
+                <button class="icon-button">
+                    <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" fill="none">
+                        <path d="M4 8h16M4 16h16"></path>
+                    </svg>
+                </button>
+                <span>Actions</span>
+                <div class="progress-bar">
+                    <div class="progress-fill teal-fill" style="width: 60%;"></div>
+                </div>
+            </div>
+            
+            <!-- Configuration -->
+            <div class="control-button">
+                <button class="icon-button">
+                    <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" fill="none">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                    </svg>
+                </button>
+                <span>Configuration</span>
+                <div class="progress-bar">
+                    <div class="progress-fill yellow-fill" style="width: 40%;"></div>
+                </div>
+            </div>
+            
+            <!-- Print -->
+            <div class="control-button print-button">
+                <button class="icon-button" id="print-btn">
+                    <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" fill="none">
+                        <path d="M6 9V2h12v7"></path>
+                        <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                        <path d="M6 14h12v8H6z"></path>
+                    </svg>
+                </button>
+                <span id="print-status-text">Print</span>
+                <div class="progress-bar" id="print-progress-container" style="display: none;">
+                    <div class="progress-fill blue-fill" id="print-progress" style="width: 0%;"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <footer>
+        <div>
+            <span class="status-indicator status-idle" id="status-indicator"></span>
+            <span id="printer-status">Status: Idle</span>
+        </div>
+        <div id="progress-text" style="display: none;">
+            Progress: 0.0%
+        </div>
+    </footer>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script>
+        // Printer data state
+        const printerData = {
+            extruderTemp: 21,
+            heaterBedTemp: 25,
+            piTemp: 44,
+            status: "Idle",
+            printProgress: 0,
+            tempHistory: {
+                timestamps: [],
+                extruderData: [],
+                bedData: [],
+                piData: []
+            }
+        };
+
+        // DOM elements
+        const extruderTemp = document.getElementById('extruder-temp');
+        const bedTemp = document.getElementById('bed-temp');
+        const piTemp = document.getElementById('pi-temp');
+        const extruderBar = document.getElementById('extruder-bar');
+        const bedBar = document.getElementById('bed-bar');
+        const piBar = document.getElementById('pi-bar');
+        const headerExtruder = document.getElementById('header-extruder');
+        const headerBed = document.getElementById('header-bed');
+        const headerPi = document.getElementById('header-pi');
+        const printerStatus = document.getElementById('printer-status');
+        const statusIndicator = document.getElementById('status-indicator');
+        const printBtn = document.getElementById('print-btn');
+        const printStatusText = document.getElementById('print-status-text');
+        const printProgressContainer = document.getElementById('print-progress-container');
+        const printProgress = document.getElementById('print-progress');
+        const progressText = document.getElementById('progress-text');
+        const homingBtn = document.getElementById('homing-btn');
+        const homingProgress = document.getElementById('homing-progress');
+        const currentTime = document.getElementById('current-time');
+
+        // Initialize Chart.js
+        const ctx = document.getElementById('temp-chart').getContext('2d');
+        const tempChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: 'Extruder',
+                        data: [],
+                        borderColor: '#f97316',
+                        backgroundColor: 'rgba(249, 115, 22, 0.1)',
+                        tension: 0.4,
+                        pointRadius: 0
+                    },
+                    {
+                        label: 'Bed',
+                        data: [],
+                        borderColor: '#14b8a6',
+                        backgroundColor: 'rgba(20, 184, 166, 0.1)',
+                        tension: 0.4,
+                        pointRadius: 0
+                    },
+                    {
+                        label: 'Pi',
+                        data: [],
+                        borderColor: '#ec4899',
+                        backgroundColor: 'rgba(236, 72, 153, 0.1)',
+                        tension: 0.4,
+                        pointRadius: 0
+                    }
+                ]
+            },
+            options: {
+                animation: false,
+                scales: {
+                    y: {
+                        suggestedMin: 0,
+                        suggestedMax: 60,
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.1)'
+                        },
+                        ticks: {
+                            color: '#fff'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.1)'
+                        },
+                        ticks: {
+                            color: '#fff',
+                            maxRotation: 0
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: '#fff'
+                        }
+                    }
+                }
+            }
+        });
+
+        // Update UI with printer data
+        function updateUI() {
+            // Update temperatures
+            extruderTemp.textContent = printerData.extruderTemp.toFixed(0);
+            bedTemp.textContent = printerData.heaterBedTemp.toFixed(0);
+            piTemp.textContent = printerData.piTemp.toFixed(0);
+            
+            // Update header temperatures
+            headerExtruder.textContent = 🌡 ${printerData.extruderTemp.toFixed(0)}°;
+            headerBed.textContent = 🌡 ${printerData.heaterBedTemp.toFixed(0)}°;
+            headerPi.textContent = Pi ${printerData.piTemp.toFixed(0)}°;
+            
+            // Update temperature bars
+            extruderBar.style.height = ${(printerData.extruderTemp / 250) * 100}%;
+            bedBar.style.height = ${(printerData.heaterBedTemp / 80) * 100}%;
+            piBar.style.height = ${(printerData.piTemp / 60) * 100}%;
+            
+            // Update status
+            printerStatus.textContent = Status: ${printerData.status};
+            
+            // Update status indicator
+            statusIndicator.className = 'status-indicator';
+            if (printerData.status === 'Printing') {
+                statusIndicator.classList.add('status-printing');
+            } else if (printerData.status === 'Homing') {
+                statusIndicator.classList.add('status-homing');
+            } else {
+                statusIndicator.classList.add('status-idle');
+            }
+            
+            // Update print button and progress
+            if (printerData.status === 'Printing') {
+                printStatusText.textContent = Stop Print (${printerData.printProgress.toFixed(1)}%);
+                printBtn.innerHTML = '<span style="font-size: 24px;">■</span>';
+                printBtn.style.backgroundColor = '#991b1b';
+                printProgressContainer.style.display = 'block';
+                printProgress.style.width = ${printerData.printProgress}%;
+                progressText.style.display = 'block';
+                progressText.textContent = Progress: ${printerData.printProgress.toFixed(1)}%;
+            } else {
+                printStatusText.textContent = 'Print';
+                printBtn.innerHTML = `
+                    <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" fill="none">
+                        <path d="M6 9V2h12v7"></path>
+                        <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                        <path d="M6 14h12v8H6z"></path>
+                    </svg>
+                `;
+                printBtn.style.backgroundColor = '#333';
+                printProgressContainer.style.display = 'none';
+                progressText.style.display = 'none';
+            }
+            
+            // Update homing progress bar
+            if (printerData.status === 'Homing') {
+                homingProgress.style.width = '100%';
+            } else {
+                homingProgress.style.width = '0%';
+            }
+            
+            // Update chart
+            updateChart();
+        }
+
+        // Update chart with new data
+        function updateChart() {
+            if (printerData.tempHistory.timestamps.length > 0) {
+                tempChart.data.labels = printerData.tempHistory.timestamps;
+                tempChart.data.datasets[0].data = printerData.tempHistory.extruderData;
+                tempChart.data.datasets[1].data = printerData.tempHistory.bedData;
+                tempChart.data.datasets[2].data = printerData.tempHistory.piData;
+                tempChart.update();
+            }
+        }
+
+        // Update clock
+        function updateClock() {
+            const now = new Date();
+            const hours = now.getHours().toString().padStart(2, '0');
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+            currentTime.textContent = ${hours}:${minutes};
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // Event listeners
+        printBtn.addEventListener('click', function() {
+            if (printerData.status === 'Printing') {
+                stopPrint();
+            } else if (printerData.status === 'Idle') {
+                startPrint();
+            }
+        });
+
+        homingBtn.addEventListener('click', function() {
+            startHoming();
+        });
+
+        // Socket.io connection
+        let socket;
+        try {
+            socket = io('http://localhost:5000');
+
+            socket.on('connect', function() {
+                console.log('Connected to server');
+            });
+
+            socket.on('printerData', function(data) {
+                // Update printer data
+                printerData.extruderTemp = data.extruderTemp;
+                printerData.heaterBedTemp = data.heaterBedTemp;
+                printerData.piTemp = data.piTemp;
+                printerData.status = data.status;
+                printerData.printProgress = data.printProgress;
+                printerData.tempHistory = data.tempHistory;
+                
+                // Update UI
+                updateUI();
+            });
+
+            socket.on('disconnect', function() {
+                console.log('Disconnected from server');
+            });
+        } catch (e) {
+            console.error('Socket.io connection failed, using simulation mode');
+            // Fallback to simulation if server connection fails
+            startSimulation();
+        }
+
+        // Printer actions
+        function startPrint() {
+            if (socket && socket.connected) {
+                socket.emit('startPrint');
+            } else {
+                printerData.status = 'Printing';
+                printerData.printProgress = 0;
+                updateUI();
+            }
+        }
+
+        function stopPrint() {
+            if (socket && socket.connected) {
+                socket.emit('stopPrint');
+            } else {
+                printerData.status = 'Idle';
+                printerData.printProgress = 0;
+                updateUI();
+            }
+        }
+
+        function startHoming() {
+            if (socket && socket.connected) {
+                socket.emit('startHoming');
+            } else {
+                printerData.status = 'Homing';
+                updateUI();
+                setTimeout(() => {
+                    printerData.status = 'Idle';
+                    updateUI();
+                }, 5000);
+            }
+        }
+
+        // Local simulation mode (if server is not available)
+        function startSimulation() {
+            console.log('Starting local simulation mode');
+            
+            // Initialize temperature history
+            for (let i = 0; i < 10; i++) {
+                const time = new Date();
+                time.setMinutes(time.getMinutes() - (10 - i));
+                const timeStr = ${time.getHours()}:${time.getMinutes().toString().padStart(2, '0')};
+                
+                printerData.tempHistory.timestamps.push(timeStr);
+                printerData.tempHistory.extruderData.push(printerData.extruderTemp);
+                printerData.tempHistory.bedData.push(printerData.heaterBedTemp);
+                printerData.tempHistory.piData.push(printerData.piTemp);
+            }
+            
+            // Simulate temperature changes
+            setInterval(() => {
+                // Only change temperatures if printing or random chance to simulate environmental changes
+                const isChanging = printerData.status === 'Printing' || Math.random() < 0.1;
+                
+                if (isChanging) {
+                    if (printerData.status === 'Printing') {
+                        // When printing, gradually increase temperature with some fluctuation
+                        printerData.extruderTemp = Math.min(250, Math.max(180, printerData.extruderTemp + (Math.random() * 0.6 - 0.3)));
+                        printerData.heaterBedTemp = Math.min(80, Math.max(50, printerData.heaterBedTemp + (Math.random() * 0.4 - 0.2)));
+                    } else {
+                        // When idle, simulate cooling or ambient temperature changes
+                        printerData.extruderTemp = Math.max(20, printerData.extruderTemp + (Math.random() * 0.2 - 0.15));
+                        printerData.heaterBedTemp = Math.max(20, printerData.heaterBedTemp + (Math.random() * 0.2 - 0.15));
+                    }
+                    
+                    // Pi temperature fluctuates a bit regardless of status
+                    printerData.piTemp = Math.max(35, Math.min(55, printerData.piTemp + (Math.random() * 0.6 - 0.3)));
+                }
+                
+                // Update progress if printing
+                if (printerData.status === 'Printing') {
+                    printerData.printProgress = Math.min(100, printerData.printProgress + 0.1);
+                    if (printerData.printProgress >= 100) {
+                        printerData.status = 'Idle';
+                        printerData.printProgress = 0;
+                    }
+                }
+                
+                // Update temperature history
+                const now = new Date();
+                const timeStr = ${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')};
+                
+                printerData.tempHistory.timestamps.push(timeStr);
+                printerData.tempHistory.extruderData.push(printerData.extruderTemp);
+                printerData.tempHistory.bedData.push(printerData.heaterBedTemp);
+                printerData.tempHistory.piData.push(printerData.piTemp);
+                
+                // Keep only last 5 minutes (assuming 1 update per second)
+                const maxDataPoints = 60;
+                if (printerData.tempHistory.timestamps.length > maxDataPoints) {
+                    printerData.tempHistory.timestamps.shift();
+                    printerData.tempHistory.extruderData.shift();
+                    printerData.tempHistory.bedData.shift();
+                    printerData.tempHistory.piData.shift();
+                }
+                
+                // Update UI
+                updateUI();
+            }, 1000);
+        }
+
+        // Initial UI update
+        updateUI();
+        
+    </script>
+</body>
+</html>

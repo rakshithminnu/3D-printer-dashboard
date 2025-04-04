@@ -1,0 +1,85 @@
+/* General Styles */
+body {
+    font-family: Arial, sans-serif;
+    background-color: #121212;
+    color: white;
+    margin: 0;
+    padding: 0;
+}
+
+.dashboard {
+    max-width: 800px;
+    margin: auto;
+    padding: 20px;
+}
+
+/* Header */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.header-left span,
+.header-right {
+    margin-right: 10px;
+}
+
+/* Temperature Section */
+.temperature-section h3 {
+    margin-top: 20px;
+}
+
+.temp-item {
+    display: flex;
+    align-items: center;
+}
+
+.temp-icon {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 5px;
+}
+
+.extruder-icon {
+    background-color: orange;
+}
+
+.bed-icon {
+    background-color: teal;
+}
+
+.pi-icon {
+    background-color: magenta;
+}
+
+/* Graph */
+#temperature-chart {
+    width: 100%;
+    height: 150px;
+}
+
+/* Actions */
+.actions {
+    display: flex;
+    justify-content: space-around;
+}
+
+.action-button {
+    background-color: #1e1e1e;
+    color: white;
+    padding: 10px 20px;
+}
+
+/* Progress Bar */
+.progress-bar {
+    width: 100%;
+    height: 10px;
+    background-color: grey;
+}
+
+#progress-fill {
+    height: 100%;
+    width: 0%;
+}
